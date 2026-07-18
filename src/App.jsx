@@ -222,10 +222,15 @@ const LOCATION_COORDS = {
    in that activity's own description (Big Springs, Almanor West, the Paul
    Bunyan statue, etc). Activities without one real, identifiable spot — open
    lake boating, loosely-defined forest-road loops — are left on the location
-   pin, since inventing a fake precise point would be less honest than that. */
+   pin, since inventing a fake precise point would be less honest than that.
+   The Lake Almanor pontoon activities (1, 2, 3) point to the Almanor Boat
+   Launch (adjacent to Almanor North Campground, west shore) rather than their
+   on-water destination — since these are trip-planning "get directions" links,
+   where to actually launch the boat is more useful than a mid-lake coordinate. */
 const ACTIVITY_COORDS = {
-  2: { lat: 40.2747, lng: -121.1020 }, // Big Springs, Lake Almanor
-  3: { lat: 40.2363, lng: -121.2044 }, // Almanor West
+  1: { lat: 40.2203, lng: -121.1755 }, // Almanor Boat Launch, Almanor North Campground
+  2: { lat: 40.2203, lng: -121.1755 }, // Almanor Boat Launch, Almanor North Campground
+  3: { lat: 40.2203, lng: -121.1755 }, // Almanor Boat Launch, Almanor North Campground
   6: { lat: 40.3058, lng: -121.0006 }, // Bizz Johnson Trail's Westwood trailhead — same spot as the Paul Bunyan statue/kiosk
   7: { lat: 40.3058, lng: -121.0006 }, // Paul Bunyan & Babe statue, downtown Westwood
   12: { lat: 40.4587, lng: -121.5053 }, // Bumpass Hell trailhead
