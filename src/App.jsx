@@ -897,10 +897,10 @@ function TripBuilder({ userLocation, setUserLocation }) {
                       <div className="itin-item-title">{a.title}</div>
                       {a.trail && <div className="trail-meta trail-meta-sm"><span>{a.distance}</span><span className="trail-dot">·</span><span>{a.difficulty}</span></div>}
                       {vendor && <div className="itin-slot-gear">Fishing Charter — guided trip</div>}
+                      <p className="itin-slot-desc itin-slot-desc-collapsed">{a.desc}</p>
                     </button>
                     {expanded && (
                       <div className="activity-detail">
-                        <p className="itin-slot-desc">{a.desc}</p>
                         <div className="activity-detail-links">
                           <a href={mapsUrl(coordsForActivity(a), a.location)} target="_blank" rel="noopener noreferrer" className="link-arrow"><MapPin size={13} /> View on map</a>
                           <a href={directionsUrl(coordsForActivity(a), a.location)} target="_blank" rel="noopener noreferrer" className="link-arrow"><ArrowRight size={13} /> Get directions</a>
@@ -1164,12 +1164,12 @@ function ExplorePage({ userLocation, setUserLocation }) {
    (e.g. "Lassen hiking," "Lake Almanor trip planner") would need real,
    separate URLs per category — see SEO_STRATEGY_NOTES.md. */
 const SITE_URL = "https://www.adventurealmanor.com/";
-const SITE_TITLE = "Lake Almanor Trip Planner | Boating, Fishing, Hiking, Biking & Off-Roading";
-const SITE_DESCRIPTION = "Free trip planning for boating, fishing, hiking, biking, and off-roading around Lake Almanor, Chester, Westwood, Silver Lake, Mountain Meadows Reservoir, Lassen Volcanic National Park, and Caribou Wilderness, California — plus a directory of real hiking trails and local fishing guides.";
+const SITE_TITLE = "Lake Almanor Trip Planner | Boating, Fishing & Hiking";
+const SITE_DESCRIPTION = "Free trip planning for boating, fishing, hiking, biking, and off-roading around Lake Almanor, CA — plus real hiking trails and local guides.";
 const SEO_VIEWS = {
   home: { title: SITE_TITLE, description: SITE_DESCRIPTION },
-  trip: { title: "Plan a Boating, Fishing, Hiking & Off-Roading Trip | Lake Almanor Trip Builder", description: "Build a custom day, weekend, or week-long itinerary across Lake Almanor, Chester, Westwood, Silver Lake, Mountain Meadows Reservoir, Lassen Volcanic National Park, and Caribou Wilderness — matched to boating, fishing, hiking, biking, and off-roading." },
-  explore: { title: "Hiking Trails & Fishing Guides Near Lake Almanor & Lassen Volcanic NP", description: "A directory of real hiking and biking trails around the Almanor basin — Kings Creek Falls, Cinder Cone, Bumpass Hell, Caribou Wilderness lakes — plus local fishing charters and guides." },
+  trip: { title: "Lake Almanor Trip Builder | Custom Itineraries", description: "Build a custom day, weekend, or week-long Lake Almanor itinerary — boating, fishing, hiking, biking, and off-roading, matched to your trip." },
+  explore: { title: "Hiking Trails & Fishing Guides Near Lake Almanor", description: "Real hiking and biking trails around Lake Almanor and Lassen Volcanic NP, linked to AllTrails, plus local fishing charters and guides." },
 };
 
 export default function AlmanorTripPlannerSite() {
@@ -1390,6 +1390,7 @@ export default function AlmanorTripPlannerSite() {
         .itin-item-remove{ background:none; border:none; color:var(--granite); padding:2px; }
         .itin-item-remove:hover{ color:var(--ember); }
         .itin-slot-desc{ font-size:13.5px; color:var(--granite); line-height:1.5; margin-bottom:6px; }
+        .itin-slot-desc-collapsed{ margin-top:6px; margin-bottom:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
         .itin-slot-gear{ font-size:12px; font-weight:600; color:var(--ember); margin-top:2px; }
 
         .activity-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:12px; }
