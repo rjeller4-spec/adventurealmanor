@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Anchor, Mountain, Bike, Fish, Compass, MapPin, Calendar as CalendarIcon,
   Sun, Tent, Check, X, Menu, Phone, Mail, Clock, ArrowRight, Route,
-  ExternalLink, TrendingUp
+  ExternalLink, TrendingUp, Backpack, Flag
 } from "lucide-react";
 
 /* ---------------------------------------------------------------- */
@@ -103,6 +103,7 @@ const INTERESTS = [
   { id: "biking", label: "Biking", icon: Bike },
   { id: "offroading", label: "Off-Roading", icon: Route },
   { id: "sightseeing", label: "Sightseeing", icon: Sun },
+  { id: "golf", label: "Golf", icon: Flag },
 ];
 
 const ACTIVITIES = [
@@ -148,6 +149,8 @@ const ACTIVITIES = [
   { id: 40, location: "Chester", tags: ["hiking"], title: "Hwy 36 Trailhead to Butt Mountain Trail", desc: "A long, demanding climb to one of the highest points overlooking the basin — for experienced hikers with a full day to spend.", gear: null, hours: 9, distance: "19.5 mi round trip", difficulty: "Strenuous", trail: true, alltrailsUrl: "https://www.alltrails.com/trail/us/california/hwy-36-trailhead-to-butt-mountain-trail" },
   { id: 41, location: "Mountain Meadows Reservoir", tags: ["boating"], title: "Launch at Indian Ole Dam", desc: "The reservoir's public boat launch, at the dam off Indian Ole Road — put in here for a slow cruise or a troll for trout and bass.", gear: "pontoon", hours: 2.5, sourceUrl: "https://en.wikipedia.org/wiki/Mountain_Meadows_Reservoir" },
   { id: 42, location: "Mountain Meadows Reservoir", tags: ["fishing"], title: "Fish Indian Ole Dam — shore or by boat", desc: "Cast from the bank right at the dam, or launch here and troll for rainbow trout, brown trout, and smallmouth bass across the reservoir.", gear: null, hours: 2.5, sourceUrl: "https://en.wikipedia.org/wiki/Mountain_Meadows_Reservoir" },
+  { id: 43, location: "Lake Almanor", tags: ["golf"], title: "Round at Bailey Creek Golf Course", desc: "An 18-hole championship course along the Lake Almanor shoreline, with more than fifty bunkers and Lassen Peak on the skyline.", gear: null, hours: 4.5, sourceUrl: "https://baileycreek.com/" },
+  { id: 44, location: "Chester", tags: ["golf"], title: "Round at Lake Almanor West Golf Course", desc: "A public 9-hole course with forest-lined fairways and Mount Lassen views, plus a pro shop and driving range.", gear: null, hours: 2.5, sourceUrl: "https://www.lakealmanorwest.org/golf.html" },
 ];
 
 /* AllTrails has no working "search results" URL to deep-link to (a plain
@@ -294,6 +297,8 @@ const ACTIVITY_COORDS = {
   40: { lat: 40.26157, lng: -121.33886 }, // Hwy 36 Trailhead (Butt Mountain)
   41: { lat: 40.2836, lng: -121.0248 }, // Indian Ole Dam, Mountain Meadows Reservoir
   42: { lat: 40.2836, lng: -121.0248 }, // Indian Ole Dam, Mountain Meadows Reservoir
+  43: { lat: 40.2909011, lng: -121.14048 }, // Bailey Creek Golf Course (resolved from the course's own Google Maps link)
+  44: { lat: 40.2411535, lng: -121.2052744 }, // Lake Almanor West Golf Course
 };
 function coordsForActivity(a) {
   return ACTIVITY_COORDS[a.id] || LOCATION_COORDS[a.location];
@@ -546,6 +551,7 @@ function Nav({ view, setView }) {
     { id: "home", label: "Home" },
     { id: "trip", label: "Trip Builder" },
     { id: "explore", label: "Trails & Guides" },
+    { id: "essentials", label: "Adventure Essentials" },
   ];
   return (
     <header className="nav">
@@ -1224,6 +1230,137 @@ function ExplorePage({ userLocation, setUserLocation }) {
 }
 
 /* ---------------------------------------------------------------- */
+/* ADVENTURE ESSENTIALS                                               */
+/* ---------------------------------------------------------------- */
+
+/* General, well-established outdoor-gear guidance (not hyperlocal claims),
+   scaled to the same short/half-day/full-day bands used elsewhere on the
+   site. Each category links out to a real, verified authoritative source
+   for more detail or acquisition — REI's Expert Advice checklists, the
+   relevant CA state agency, or (for golf) the courses' own sites — rather
+   than a generic or invented gear-shop link. */
+const ESSENTIALS_CATEGORIES = [
+  {
+    id: "hiking", label: "Hiking", icon: Mountain,
+    tiers: [
+      { label: "Short (under 2 hrs)", items: ["Comfortable, broken-in footwear", "Water bottle", "Sun protection — hat & sunscreen", "Light layer in case weather turns", "Phone with an offline map downloaded"] },
+      { label: "Half day (2–4 hrs)", items: ["Daypack", "1–2L water minimum", "Trail snacks", "Basic first-aid kit", "Packable rain shell"] },
+      { label: "Full day (4+ hrs)", items: ["The Ten Essentials (navigation, headlamp, fire starter, repair kit, emergency shelter)", "2–3L water or a filter/purifier", "A real meal, not just snacks", "Trekking poles for elevation gain", "Extra warm layer for after sundown"] },
+    ],
+    links: [
+      { label: "REI: The Ten Essentials", url: "https://www.rei.com/learn/expert-advice/ten-essentials.html" },
+      { label: "REI: Day Hiking Checklist", url: "https://www.rei.com/learn/expert-advice/day-hiking-checklist.html" },
+    ],
+  },
+  {
+    id: "biking", label: "Biking", icon: Bike,
+    tiers: [
+      { label: "Short (under 2 hrs)", items: ["Helmet", "Water bottle", "Basic flat kit — spare tube & tire levers", "Sunglasses"] },
+      { label: "Half day (2–4 hrs)", items: ["Padded gloves", "Multi-tool", "Mini pump or CO2 inflator", "Ride snacks", "Padded cycling shorts"] },
+      { label: "Full day (4+ hrs)", items: ["Hydration pack", "Full repair kit + chain lube", "Extra layers for temperature swings", "First-aid kit", "Lights, if there's any chance you're out past dusk"] },
+    ],
+    links: [{ label: "REI: Mountain Biking Checklist", url: "https://www.rei.com/learn/expert-advice/mountain-biking-checklist.html" }],
+  },
+  {
+    id: "backpacking", label: "Backpacking", icon: Backpack,
+    tiers: [
+      { label: "Short (1 night)", items: ["Tent or shelter", "Sleeping bag rated for the forecast low", "Sleeping pad", "Stove + fuel", "Food + a bear-safe storage method", "Water filter or purification"] },
+      { label: "Half (2–3 nights)", items: ["Extra food & fuel margin", "Gear repair kit", "Extra clothing layers", "Any required wilderness permit"] },
+      { label: "Full (4+ nights)", items: ["A resupply plan", "A more complete first-aid kit", "Satellite communicator or PLB for areas with no cell coverage", "Extra water-treatment capacity"] },
+    ],
+    links: [
+      { label: "REI: Backpacking Checklist", url: "https://www.rei.com/learn/expert-advice/backpacking-checklist.html" },
+      { label: "REI: The Ten Essentials", url: "https://www.rei.com/learn/expert-advice/ten-essentials.html" },
+    ],
+  },
+  {
+    id: "fishing", label: "Fishing", icon: Fish,
+    tiers: [
+      { label: "Short (under 2 hrs, bank/shore)", items: ["Rod & reel", "Valid CA fishing license", "Small tackle box", "Needle-nose pliers", "Polarized sunglasses"] },
+      { label: "Half day (2–4 hrs)", items: ["Cooler for your catch", "Extra line, leader & tackle variety", "Sun protection — hat & sunscreen", "Folding chair"] },
+      { label: "Full day (4+ hrs, boat or backcountry)", items: ["PFD if fishing from a boat", "Weather-layered clothing", "More food & water than you think you need", "First-aid kit", "Backup rod"] },
+    ],
+    links: [{ label: "CA Dept. of Fish & Wildlife: Fishing licenses & regulations", url: "https://wildlife.ca.gov/Fishing" }],
+  },
+  {
+    id: "boating", label: "Boating", icon: Anchor,
+    tiers: [
+      { label: "Short (under 2 hrs)", items: ["A properly fitted PFD for every person aboard", "Phone in a waterproof case", "Sunscreen", "Drinking water"] },
+      { label: "Half day (2–4 hrs)", items: ["Coast Guard–required safety equipment (throwable device, sound signal, fire extinguisher if applicable)", "Extra layer for wind on the water", "Snacks"] },
+      { label: "Full day (4+ hrs)", items: ["First-aid kit", "Extra fuel margin", "Navigation charts or app", "A reliable way to call for help — VHF radio or confirmed cell coverage", "Spare PFDs"] },
+    ],
+    links: [{ label: "CA Div. of Boating & Waterways: Required Safety Equipment", url: "https://dbw.parks.ca.gov/SafetyEquipment" }],
+  },
+  {
+    id: "offroading", label: "Off-Roading", icon: Route,
+    tiers: [
+      { label: "Short (under 2 hrs, established trails)", items: ["DOT-approved helmet", "Seatbelt/harness (UTV)", "Gloves", "Eye protection", "Sturdy, closed-toe boots"] },
+      { label: "Half day (2–4 hrs)", items: ["Long sleeves & pants", "Basic tool kit", "Tire repair kit", "Extra fuel", "A plan for checking in with someone"] },
+      { label: "Full day (4+ hrs, remote trails)", items: ["Recovery gear — tow strap & shovel", "Spare parts for your specific rig", "GPS or offline trail maps", "First-aid kit", "Extra water"] },
+    ],
+    links: [{ label: "CA State Parks OHMVR: Safety Requirements", url: "https://ohv.parks.ca.gov/?page_id=26952" }],
+  },
+  {
+    id: "golf", label: "Golf", icon: Flag,
+    tiers: [
+      { label: "Short (9 holes)", items: ["Clubs (rentals available at both local courses)", "Golf balls & tees", "Golf or athletic shoes", "Weather layer"] },
+      { label: "Half day (18 holes)", items: ["Rangefinder or course app", "Water", "Snacks", "Sun protection"] },
+      { label: "Full day (18 holes + practice/lesson)", items: ["Extra balls", "Glove", "Cart or trail fee budgeted", "Attire that fits the course's dress code — worth a quick call ahead"] },
+    ],
+    links: [
+      { label: "Bailey Creek Golf Course", url: "https://baileycreek.com/" },
+      { label: "Lake Almanor West Golf Course", url: "https://www.lakealmanorwest.org/golf.html" },
+    ],
+  },
+];
+
+function EssentialsPage() {
+  const [catId, setCatId] = useState("hiking");
+  const category = ESSENTIALS_CATEGORIES.find((c) => c.id === catId) || ESSENTIALS_CATEGORIES[0];
+  return (
+    <div>
+      <section className="page-hero page-hero-pine">
+        <Eyebrow color="var(--gold)">Adventure Essentials</Eyebrow>
+        <h1 className="page-title">Gear up for your Lake Almanor adventure.</h1>
+        <p className="page-sub">What to pack for hiking, biking, backpacking, fishing, boating, off-roading, and golf — scaled to how long you're out.</p>
+      </section>
+      <section className="section">
+        <div className="section-inner">
+          <div className="chip-row" style={{ marginBottom: 24 }}>
+            {ESSENTIALS_CATEGORIES.map((c) => (
+              <button key={c.id} className={`chip ${catId === c.id ? "chip-active-pine" : ""}`} onClick={() => setCatId(c.id)}>
+                <c.icon size={14} /> {c.label}
+              </button>
+            ))}
+          </div>
+          <div className="essentials-grid">
+            {category.tiers.map((t) => (
+              <div className="essentials-card" key={t.label}>
+                <h3 className="essentials-tier-title">{t.label}</h3>
+                <ul className="essentials-list">
+                  {t.items.map((item) => (
+                    <li key={item}><Check size={14} /> <span>{item}</span></li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <div className="essentials-links">
+            <div className="essentials-links-label">Learn more / get geared up</div>
+            {category.links.map((l) => (
+              <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="link-arrow">
+                <ExternalLink size={13} /> {l.label}
+              </a>
+            ))}
+          </div>
+          <p className="form-fineprint" style={{ marginTop: 14 }}>General guidance, not a substitute for checking current conditions, regulations, and license requirements before you go.</p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* ROOT                                                                */
 /* ---------------------------------------------------------------- */
 
@@ -1243,6 +1380,7 @@ const SEO_VIEWS = {
   home: { title: SITE_TITLE, description: SITE_DESCRIPTION },
   trip: { title: "Lake Almanor Trip Builder | Plan Your Adventure", description: "Build a custom day, weekend, or week-long Lake Almanor adventure — boating, fishing, hiking, biking, and off-roading, matched to your trip." },
   explore: { title: "Hiking Trails & Fishing Guides Near Lake Almanor", description: "Real hiking and biking trails around Lake Almanor and Lassen Volcanic NP, linked to AllTrails, plus local fishing charters and guides." },
+  essentials: { title: "Adventure Essentials | What to Pack for Lake Almanor", description: "Gear checklists for hiking, biking, backpacking, fishing, boating, off-roading, and golf around Lake Almanor — scaled to short, half-day, and full-day trips." },
 };
 
 export default function AlmanorTripPlannerSite() {
@@ -1498,6 +1636,17 @@ export default function AlmanorTripPlannerSite() {
         .trail-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
         @media (max-width:900px){ .trail-grid{ grid-template-columns:1fr 1fr; } }
         @media (max-width:620px){ .trail-grid{ grid-template-columns:1fr; } }
+
+        /* Adventure Essentials */
+        .essentials-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+        @media (max-width:820px){ .essentials-grid{ grid-template-columns:1fr; } }
+        .essentials-card{ background:var(--paper); border:1px solid #DDD5BF; border-radius:8px; padding:18px; }
+        .essentials-tier-title{ font-family:'Big Shoulders Display',sans-serif; text-transform:none; font-size:17px; font-weight:700; color:var(--pine); margin:0 0 12px; }
+        .essentials-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:9px; }
+        .essentials-list li{ display:flex; align-items:flex-start; gap:8px; font-size:13.5px; color:var(--ink); line-height:1.4; }
+        .essentials-list li svg{ flex:0 0 auto; margin-top:2px; color:var(--pine); }
+        .essentials-links{ display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-top:22px; padding-top:18px; border-top:1px solid #DDD5BF; }
+        .essentials-links-label{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--granite); width:100%; margin-bottom:2px; }
         .trail-card{ background:var(--paper); border:1px solid #DDD5BF; border-radius:6px; overflow:hidden; display:flex; flex-direction:column; }
         .trail-card-photo{ height:130px; background-color:#DDD5BF; }
         .trail-card-body{ padding:18px; display:flex; flex-direction:column; gap:6px; }
@@ -1571,6 +1720,7 @@ export default function AlmanorTripPlannerSite() {
       {view === "home" && <Home setView={setView} />}
       {view === "trip" && <TripBuilder userLocation={userLocation} setUserLocation={setUserLocation} />}
       {view === "explore" && <ExplorePage userLocation={userLocation} setUserLocation={setUserLocation} />}
+      {view === "essentials" && <EssentialsPage />}
       <Footer />
     </div>
   );
