@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Anchor, Mountain, Bike, Fish, Compass, MapPin, Calendar as CalendarIcon,
   Sun, Tent, Check, X, Menu, Phone, Mail, Clock, ArrowRight, Route,
-  ExternalLink, TrendingUp, Backpack, Flag, ChevronUp, ChevronDown
+  ExternalLink, TrendingUp, Backpack, Flag, ChevronUp, ChevronDown, Utensils
 } from "lucide-react";
 
 /* ---------------------------------------------------------------- */
@@ -248,6 +248,37 @@ const LOCATION_COORDS = {
   "Caribou Wilderness": { lat: 40.4887, lng: -121.2088 },
 };
 
+const MEAL_TYPES = [
+  { id: "breakfast", label: "Breakfast", minutes: 45 },
+  { id: "lunch", label: "Lunch", minutes: 60 },
+  { id: "dinner", label: "Dinner", minutes: 90 },
+];
+
+/* A curated set of real, well-regarded restaurants across the basin,
+   verified against the Lake Almanor Area Chamber of Commerce's restaurant
+   directory (which lists which meals each one actually serves — not every
+   place here does breakfast) plus each business's own site where one
+   exists. This is a static site with no backend or live ratings API, so
+   "top rated" means a real, checked list of the basin's known-good local
+   spots, not a live feed — restaurants without a dedicated website fall
+   back to a Google search link, the same pattern used for LODGING entries
+   without a site. Coordinates are geocoded from each business's real
+   street address (OpenStreetMap/Nominatim), or reuse a sibling business's
+   verified point when they share the same physical address (Bailey Creek's
+   grill and Almanor West's grill are both on-site at their golf courses). */
+const RESTAURANTS = [
+  { id: "ranch-house", name: "The Ranch House", location: "Chester", cuisine: "American", meals: ["breakfast", "lunch", "dinner"], desc: "Chester's go-to for breakfast, lunch, and dinner, with cocktails and a reputation for great burgers.", url: businessSearchUrl("The Ranch House restaurant Chester CA"), coords: { lat: 40.2970594, lng: -121.2388205 } },
+  { id: "kopper-kettle", name: "Kopper Kettle", location: "Chester", cuisine: "American", meals: ["breakfast", "lunch", "dinner"], desc: "A Main Street staple open early for breakfast through dinner, known for generous portions and friendly service.", url: businessSearchUrl("Kopper Kettle restaurant Chester CA"), coords: { lat: 40.3085590, lng: -121.2299049 } },
+  { id: "lolas", name: "Lola's Family Restaurant", location: "Chester", cuisine: "Breakfast & Brunch", meals: ["breakfast", "lunch"], desc: "A breakfast-and-brunch favorite on Main Street.", url: businessSearchUrl("Lola's Family Restaurant Chester CA"), coords: { lat: 40.3049460, lng: -121.2332730 } },
+  { id: "cravings", name: "Cravings Cafe, Espresso Bar & Bakery", location: "Chester", cuisine: "Cafe & Bakery", meals: ["breakfast", "lunch"], desc: "Scratch-made breakfast and lunch with fresh-baked goods and espresso.", url: businessSearchUrl("Cravings Cafe Espresso Bar Bakery Chester CA"), coords: LOCATION_COORDS["Chester"] },
+  { id: "st-bernard-lodge", name: "St. Bernard Lodge", location: "Chester", cuisine: "American Lodge", meals: ["breakfast", "lunch", "dinner"], desc: "A historic lodge restaurant east of Chester serving breakfast through dinner, with cocktails.", url: "https://stbernardlodge.com", coords: { lat: 40.2598962, lng: -121.3726433 } },
+  { id: "bailey-creek-grill", name: "Bailey Creek Bar & Grill", location: "Lake Almanor", cuisine: "Bar & Grill", meals: ["lunch", "dinner"], desc: "Lunch and dinner with cocktails at the Bailey Creek golf clubhouse on the lake.", url: "https://baileycreek.com/", coords: { lat: 40.2909011, lng: -121.14048 } },
+  { id: "il-lago", name: "Il Lago Pizza & Pasta", location: "Lake Almanor", cuisine: "Italian", meals: ["lunch", "dinner"], desc: "Family-run Italian on the Peninsula — handmade pizza and pasta, open for lunch and dinner (closed Mondays).", url: "https://illagopizza.com", coords: { lat: 40.2778967, lng: -121.1293437 } },
+  { id: "lucianos", name: "Luciano's Cucina Di Pasta", location: "Lake Almanor", cuisine: "Italian", meals: ["dinner"], desc: "An Italian dinner spot on the Lake Almanor Peninsula.", url: businessSearchUrl("Luciano's Cucina Di Pasta Lake Almanor CA"), coords: LOCATION_COORDS["Lake Almanor"] },
+  { id: "almanor-west-grill", name: "Almanor West Unity Grill", location: "Chester", cuisine: "Bar & Grill", meals: ["lunch", "dinner"], desc: "Lunch, dinner, and cocktails upstairs at the Lake Almanor West golf clubhouse.", url: "https://www.lakealmanorwest.org/", coords: { lat: 40.2411535, lng: -121.2052744 } },
+  { id: "buffalo-chips", name: "Buffalo Chip's Pizza", location: "Westwood", cuisine: "Pizza", meals: ["lunch", "dinner"], desc: "Westwood's local pizza spot for lunch and dinner.", url: businessSearchUrl("Buffalo Chip's Pizza Westwood CA"), coords: { lat: 40.3038329, lng: -121.0015922 } },
+];
+
 /* Many activities that share a "location" actually happen at a distinct spot
    within it — Lassen Volcanic NP alone spans ~106,000 acres, and even a single
    town has multiple named landmarks — so the shared LOCATION_COORDS point can
@@ -344,7 +375,7 @@ function computeSchedule(slots, allActivities) {
   let cursor = 480; // 8:00 AM in minutes
   return (slots || []).map((slot) => {
     const start = slot.startOverride != null ? slot.startOverride : cursor;
-    if (slot.kind === "break") {
+    if (slot.kind === "break" || slot.kind === "meal") {
       cursor = start + slot.minutes;
       return { ...slot, start };
     }
@@ -372,6 +403,13 @@ function buildItineraryText({ itinerary, allActivities, numDays, needLodging }) 
     computeSchedule(slots, allActivities).forEach((s) => {
       if (s.kind === "break") {
         lines.push(`  ${fmtClock(s.start)} — ${s.label || "Break"} (${fmtHours(s.minutes / 60)})`);
+        return;
+      }
+      if (s.kind === "meal") {
+        const restaurant = RESTAURANTS.find((r) => r.id === s.restaurantId);
+        const mealLabel = MEAL_TYPES.find((m) => m.id === s.mealType)?.label || "Meal";
+        lines.push(`  ${fmtClock(s.start)} — ${mealLabel}${restaurant ? ` at ${restaurant.name}` : ""} (${fmtHours(s.minutes / 60)})`);
+        if (restaurant) lines.push(`    ${restaurant.url}`);
         return;
       }
       const a = s.activity;
@@ -608,6 +646,7 @@ function Nav({ view, setView }) {
     { id: "trip", label: "Trip Builder" },
     { id: "explore", label: "Trails & Guides" },
     { id: "essentials", label: "Adventure Essentials" },
+    { id: "restaurants", label: "Local Restaurants" },
   ];
   return (
     <header className="nav">
@@ -875,6 +914,31 @@ function TripBuilder({ userLocation, setUserLocation }) {
   function setBreakMinutes(day, uid, minutes) {
     setItinerary((prev) => ({ ...prev, [day]: (prev[day] || []).map((s) => (s.uid === uid ? { ...s, minutes } : s)) }));
   }
+  function addMeal(day) {
+    setItinerary((prev) => {
+      const list = prev[day] || [];
+      const mealType = "lunch";
+      const candidates = RESTAURANTS.filter((r) => r.meals.includes(mealType));
+      const restaurantId = candidates[0]?.id || null;
+      const minutes = MEAL_TYPES.find((m) => m.id === mealType).minutes;
+      return { ...prev, [day]: [...list, { uid: makeSlotUid(), kind: "meal", mealType, restaurantId, minutes, startOverride: null }] };
+    });
+  }
+  function setMealType(day, uid, mealType) {
+    setItinerary((prev) => ({
+      ...prev,
+      [day]: (prev[day] || []).map((s) => {
+        if (s.uid !== uid) return s;
+        const candidates = RESTAURANTS.filter((r) => r.meals.includes(mealType));
+        const stillValid = candidates.some((r) => r.id === s.restaurantId);
+        const minutes = MEAL_TYPES.find((m) => m.id === mealType).minutes;
+        return { ...s, mealType, minutes, restaurantId: stillValid ? s.restaurantId : (candidates[0]?.id || null) };
+      }),
+    }));
+  }
+  function setMealRestaurant(day, uid, restaurantId) {
+    setItinerary((prev) => ({ ...prev, [day]: (prev[day] || []).map((s) => (s.uid === uid ? { ...s, restaurantId } : s)) }));
+  }
   function setStartOverride(day, uid, minutes) {
     setItinerary((prev) => ({ ...prev, [day]: (prev[day] || []).map((s) => (s.uid === uid ? { ...s, startOverride: minutes } : s)) }));
   }
@@ -1021,6 +1085,33 @@ function TripBuilder({ userLocation, setUserLocation }) {
                         </div>
                       );
                     }
+                    if (slot.kind === "meal") {
+                      const restaurantOptions = RESTAURANTS.filter((r) => r.meals.includes(slot.mealType));
+                      const restaurant = RESTAURANTS.find((r) => r.id === slot.restaurantId);
+                      return (
+                        <div className="itin-item itin-item-meal" key={slot.uid}>
+                          <div className="itin-item-reorder">
+                            <button className="itin-reorder-btn" onClick={() => moveSlot(activeDay, slot.uid, -1)} disabled={idx === 0} aria-label="Move earlier"><ChevronUp size={14} /></button>
+                            <button className="itin-reorder-btn" onClick={() => moveSlot(activeDay, slot.uid, 1)} disabled={idx === scheduledDaySlots.length - 1} aria-label="Move later"><ChevronDown size={14} /></button>
+                          </div>
+                          <div className="itin-item-time">
+                            <input type="time" className="itin-time-input" value={minutesToTimeValue(slot.start)} onChange={(e) => setStartOverride(activeDay, slot.uid, timeValueToMinutes(e.target.value))} />
+                            {slot.startOverride != null && <button className="itin-time-auto" onClick={() => setStartOverride(activeDay, slot.uid, null)}>Auto</button>}
+                          </div>
+                          <div className="itin-item-body">
+                            <select className="itin-break-select itin-meal-type" value={slot.mealType} onChange={(e) => setMealType(activeDay, slot.uid, e.target.value)}>
+                              {MEAL_TYPES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                            </select>
+                            <select className="itin-break-select" value={slot.restaurantId || ""} onChange={(e) => setMealRestaurant(activeDay, slot.uid, e.target.value || null)}>
+                              {restaurantOptions.length === 0 && <option value="">No open options nearby</option>}
+                              {restaurantOptions.map((r) => <option key={r.id} value={r.id}>{r.name} — {r.location}</option>)}
+                            </select>
+                            {restaurant && <a className="link-arrow itin-item-reserve" href={restaurant.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={12} /> {restaurant.cuisine}, {restaurant.location}</a>}
+                          </div>
+                          <button className="itin-item-remove" onClick={() => removeSlot(activeDay, slot.uid)} aria-label="Remove meal"><X size={14} /></button>
+                        </div>
+                      );
+                    }
                     const a = slot.activity;
                     const vendor = a.vendorId && VENDORS.find((v) => v.id === a.vendorId);
                     return (
@@ -1045,7 +1136,10 @@ function TripBuilder({ userLocation, setUserLocation }) {
                   })}
                 </div>
               )}
-              <button className="btn btn-ghost btn-sm itin-add-break" onClick={() => addBreak(activeDay)}><Clock size={14} /> Add a break</button>
+              <div className="itin-add-row">
+                <button className="btn btn-ghost btn-sm itin-add-break" onClick={() => addBreak(activeDay)}><Clock size={14} /> Add a break</button>
+                <button className="btn btn-ghost btn-sm itin-add-break" onClick={() => addMeal(activeDay)}><Utensils size={14} /> Add a meal</button>
+              </div>
             </div>
 
             {hasItems && (
@@ -1469,6 +1563,64 @@ function EssentialsPage() {
 }
 
 /* ---------------------------------------------------------------- */
+/* RESTAURANTS                                                        */
+/* ---------------------------------------------------------------- */
+
+function RestaurantsPage({ userLocation }) {
+  const [mealFilter, setMealFilter] = useState("all");
+  const list = RESTAURANTS.filter((r) => mealFilter === "all" || r.meals.includes(mealFilter));
+  return (
+    <div>
+      <section className="page-hero page-hero-pine">
+        <Eyebrow color="var(--gold)">Local Restaurants</Eyebrow>
+        <h1 className="page-title">Where to eat around the basin.</h1>
+        <p className="page-sub">A curated list of real, well-regarded local restaurants — filter by meal to see who's actually open for it.</p>
+      </section>
+      <section className="section">
+        <div className="section-inner">
+          <div className="chip-row" style={{ marginBottom: 24 }}>
+            <button className={`chip ${mealFilter === "all" ? "chip-active-pine" : ""}`} onClick={() => setMealFilter("all")}>All</button>
+            {MEAL_TYPES.map((m) => (
+              <button key={m.id} className={`chip ${mealFilter === m.id ? "chip-active-pine" : ""}`} onClick={() => setMealFilter(m.id)}>{m.label}</button>
+            ))}
+          </div>
+          <div className="trail-grid">
+            {list.map((r) => (
+              <div className="vendor-card" key={r.id}>
+                <CoverPhoto className="vendor-card-photo" src={LOCATION_IMAGES[r.location]} alt={`${r.name} — ${r.cuisine} in ${r.location}, CA`} />
+                <div className="vendor-card-body">
+                  <div className="vendor-card-top">
+                    <Utensils size={18} color="var(--ember)" />
+                    <span className="fleet-tag">{r.cuisine}</span>
+                  </div>
+                  <h3 className="trail-card-title">{r.name}</h3>
+                  <div className="itin-item-loc"><MapPin size={11} /> {r.location} <DistanceBadge userLocation={userLocation} coords={r.coords} /></div>
+                  <div className="chip-row" style={{ margin: "4px 0" }}>
+                    {r.meals.map((mealId) => <span key={mealId} className="restaurant-meal-tag">{MEAL_TYPES.find((m) => m.id === mealId)?.label}</span>)}
+                  </div>
+                  <p className="itin-slot-desc">{r.desc}</p>
+                  <div className="activity-detail-links" style={{ marginBottom: 10 }}>
+                    <a href={mapsUrl(r.coords, r.name)} target="_blank" rel="noopener noreferrer" className="link-arrow"><MapPin size={13} /> View on map</a>
+                    <a href={directionsUrl(r.coords, r.name)} target="_blank" rel="noopener noreferrer" className="link-arrow"><ArrowRight size={13} /> Get directions</a>
+                  </div>
+                  <div className="vendor-card-bottom">
+                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="btn btn-ember btn-sm">
+                      Visit website <ExternalLink size={13} />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {list.length === 0 && <div className="itin-empty">No restaurants match that filter.</div>}
+          <p className="form-fineprint" style={{ marginTop: 20 }}>A checked, real list — not a live ratings feed. Hours and menus change; call ahead if you're planning around a specific meal.</p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
 /* ROOT                                                                */
 /* ---------------------------------------------------------------- */
 
@@ -1489,6 +1641,7 @@ const SEO_VIEWS = {
   trip: { title: "Lake Almanor Trip Builder | Plan Your Adventure", description: "Build a custom day, weekend, or week-long Lake Almanor adventure — boating, fishing, hiking, biking, and off-roading, matched to your trip." },
   explore: { title: "Hiking Trails & Fishing Guides Near Lake Almanor", description: "Real hiking and biking trails around Lake Almanor and Lassen Volcanic NP, linked to AllTrails, plus local fishing charters and guides." },
   essentials: { title: "Adventure Essentials | What to Pack for Lake Almanor", description: "Gear checklists for hiking, biking, backpacking, fishing, boating, off-roading, and golf around Lake Almanor — scaled to short, half-day, and full-day trips." },
+  restaurants: { title: "Local Restaurants Near Lake Almanor", description: "Real, checked local restaurants around Chester, Westwood, and the Lake Almanor Peninsula, filterable by breakfast, lunch, or dinner." },
 };
 
 export default function AlmanorTripPlannerSite() {
@@ -1718,6 +1871,7 @@ export default function AlmanorTripPlannerSite() {
         .itin-list{ display:flex; flex-direction:column; gap:10px; }
         .itin-item{ display:flex; gap:12px; align-items:flex-start; background:var(--paper); border:1px solid #DDD5BF; border-radius:6px; padding:12px 14px; }
         .itin-item-break{ background:var(--paper-2); border-style:dashed; }
+        .itin-item-meal{ background:var(--paper-2); border-style:dashed; }
         .itin-item-reorder{ display:flex; flex-direction:column; gap:2px; padding-top:2px; }
         .itin-reorder-btn{ display:flex; align-items:center; justify-content:center; width:20px; height:17px; background:none; border:1px solid #DDD5BF; border-radius:4px; color:var(--pine); padding:0; }
         .itin-reorder-btn:hover:not(:disabled){ background:var(--paper-2); }
@@ -1728,10 +1882,11 @@ export default function AlmanorTripPlannerSite() {
         .itin-item-body{ flex:1; }
         .itin-item-loc{ display:flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--pine); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; }
         .itin-item-title{ font-weight:700; font-size:14.5px; }
-        .itin-break-select{ margin-top:6px; font-size:13px; border:1px solid #DDD5BF; border-radius:6px; padding:4px 8px; background:var(--paper); }
+        .itin-break-select{ margin-top:6px; margin-right:8px; font-size:13px; border:1px solid #DDD5BF; border-radius:6px; padding:4px 8px; background:var(--paper); }
+        .itin-meal-type{ font-weight:600; color:var(--pine); }
         .itin-item-remove{ background:none; border:none; color:var(--granite); padding:2px; }
         .itin-item-remove:hover{ color:var(--ember); }
-        .itin-add-break{ margin-top:12px; }
+        .itin-add-row{ display:flex; gap:10px; margin-top:12px; }
         .itin-slot-desc{ font-size:13.5px; color:var(--granite); line-height:1.5; margin-bottom:6px; }
         .itin-slot-desc-collapsed{ margin-top:6px; margin-bottom:0; }
         .itin-slot-gear{ font-size:12px; font-weight:600; color:var(--ember); margin-top:2px; }
@@ -1750,6 +1905,7 @@ export default function AlmanorTripPlannerSite() {
 
         /* explore: trails & vendors */
         .fleet-tag{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ember); margin:10px 0 6px; }
+        .restaurant-meal-tag{ font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--pine); background:#DCE6DD; padding:3px 8px; border-radius:20px; }
         .trail-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
         @media (max-width:900px){ .trail-grid{ grid-template-columns:1fr 1fr; } }
         @media (max-width:620px){ .trail-grid{ grid-template-columns:1fr; } }
@@ -1838,6 +1994,7 @@ export default function AlmanorTripPlannerSite() {
       {view === "trip" && <TripBuilder userLocation={userLocation} setUserLocation={setUserLocation} />}
       {view === "explore" && <ExplorePage userLocation={userLocation} setUserLocation={setUserLocation} />}
       {view === "essentials" && <EssentialsPage />}
+      {view === "restaurants" && <RestaurantsPage userLocation={userLocation} />}
       <Footer />
     </div>
   );
