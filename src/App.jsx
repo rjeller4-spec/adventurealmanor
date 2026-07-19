@@ -60,6 +60,41 @@ const HERO_GALLERY = [
   { location: "Caribou Wilderness", caption: "Caribou Wilderness", sub: "Volcanic plateau dotted with backcountry lakes" },
 ];
 
+/* Longer, real per-area write-ups shown in the gallery's click-to-expand
+   modal — each paired with a link to the same kind of authoritative source
+   used for activity sourceUrls (chamber of commerce, NPS, USFS, Wikipedia),
+   not a fabricated one. */
+const AREA_DETAILS = {
+  "Lake Almanor": {
+    description: "Lake Almanor is the centerpiece of the basin — 13 miles of shoreline at 4,500 feet, with Lassen Peak framed across the water from nearly every angle. It's the anchor for most Lake Almanor adventures: sunrise pontoon cruises, trout fishing off Big Springs, and cove-hopping around Rocky Point and Almanor West.",
+    links: [{ label: "Lake Almanor Area Chamber of Commerce", url: "https://www.lakealmanorarea.com/" }],
+  },
+  "Chester": {
+    description: "Chester is the basin's main town — Main Street cafés, a Saturday farmers market in summer, and the trailhead for the paved Lake Almanor Recreation Trail. It's the natural base for planning a trip, with most of the lodging, groceries, and services around the lake close at hand.",
+    links: [{ label: "Lake Almanor Area Chamber of Commerce", url: "https://www.lakealmanorarea.com/" }],
+  },
+  "Westwood": {
+    description: "Westwood grew up as a Fruit Growers Supply Company lumber town and still marks that history with a giant Paul Bunyan and Babe the Blue Ox statue downtown. It's also the western trailhead for the Bizz Johnson Trail, a converted rail line running roughly 25 miles through the Susan River Canyon to Susanville.",
+    links: [{ label: "Westwood Area Chamber of Commerce", url: "https://westwoodareachamber.net/" }, { label: "Bizz Johnson National Recreation Trail (BLM)", url: "https://www.blm.gov/visit/bizz-johnson" }],
+  },
+  "Silver Lake": {
+    description: "A quieter, granite-backed alternative to the main lake, Silver Lake sits inside Lassen National Forest with a boat launch and a nature trail around the shore — noticeably thinner crowds than Almanor itself. Silver Bowl Campground is the developed base for exploring it.",
+    links: [{ label: "Silver Bowl Campground (USFS)", url: "https://www.fs.usda.gov/r05/lassen/recreation/silver-bowl-campground" }],
+  },
+  "Mountain Meadows Reservoir": {
+    description: "East of the main basin, Mountain Meadows Reservoir is a mellower, less-pressured stretch of water with strong bird life and a public boat launch at Indian Ole Dam — a good pick when you want fewer wakes and fewer people.",
+    links: [{ label: "Mountain Meadows Reservoir (Wikipedia)", url: "https://en.wikipedia.org/wiki/Mountain_Meadows_Reservoir" }],
+  },
+  "Lassen Volcanic NP": {
+    description: "Lassen Volcanic National Park spans roughly 106,000 acres of hydrothermal terrain — boiling mud pots, steam vents, and Lassen Peak itself at 10,457 feet. Kings Creek Falls, Bumpass Hell, and the Highway 89 scenic drive are the park's most popular introductions.",
+    links: [{ label: "Lassen Volcanic National Park (NPS)", url: "https://www.nps.gov/lavo/index.htm" }],
+  },
+  "Caribou Wilderness": {
+    description: "A volcanic plateau dotted with nearly two dozen named lakes, Caribou Wilderness is reached from trailheads near Silver Lake and offers some of the basin's quietest backcountry hiking and fishing, with far less foot traffic than Lassen itself.",
+    links: [{ label: "Caribou Wilderness (USFS)", url: "https://www.fs.usda.gov/r05/lassen/recreation/caribou-wilderness" }],
+  },
+};
+
 const LOCATIONS = ["Lake Almanor", "Chester", "Westwood", "Silver Lake", "Mountain Meadows Reservoir", "Lassen Volcanic NP", "Caribou Wilderness"];
 const INTERESTS = [
   { id: "boating", label: "Boating", icon: Anchor },
@@ -551,7 +586,7 @@ function Footer() {
             <Mountain size={20} />
             <span>ALMANOR&nbsp;BASIN</span>
           </div>
-          <p className="footer-note">Trip planning, trails, and local guides around Lake Almanor, California.</p>
+          <p className="footer-note">Plan your Lake Almanor adventure — trip planning, trails, and local guides.</p>
         </div>
         <div className="footer-col">
           <div className="footer-head">Contact</div>
@@ -588,24 +623,62 @@ function CoverPhoto({ src, alt, className, children }) {
   );
 }
 
+function AreaModal({ area, onClose }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!area) return null;
+  const g = HERO_GALLERY.find((h) => h.location === area);
+  const detail = AREA_DETAILS[area];
+  if (!g || !detail) return null;
+
+  return (
+    <div className="area-modal-backdrop" onClick={onClose}>
+      <div className="area-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="area-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
+        <CoverPhoto className="area-modal-photo" src={LOCATION_IMAGES[area]} alt={g.caption} />
+        <div className="area-modal-body">
+          <Eyebrow color="var(--gold)">Lake Almanor adventures</Eyebrow>
+          <h2 className="area-modal-title">{g.caption}</h2>
+          <p className="area-modal-desc">{detail.description}</p>
+          <div className="area-modal-links">
+            {detail.links.map((l) => (
+              <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="link-arrow">
+                <ExternalLink size={13} /> {l.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FeaturedGallery() {
+  const [openArea, setOpenArea] = useState(null);
   return (
     <section className="gallery-strip">
       <div className="gallery-strip-head">
         <Eyebrow color="var(--pine)">The whole basin</Eyebrow>
-        <p className="gallery-strip-sub">Scroll through the areas we route trips across — from the lake itself out to Lassen Volcanic National Park.</p>
+        <p className="gallery-strip-sub">Tap an area to start planning your Lake Almanor adventure — from the lake itself out to Lassen Volcanic National Park.</p>
       </div>
       <div className="gallery-scroll">
         {HERO_GALLERY.map((g) => (
-          <CoverPhoto className="gallery-card" key={g.location} src={LOCATION_IMAGES[g.location]} alt={g.caption}>
-            <div className="gallery-card-overlay" />
-            <div className="gallery-card-text">
-              <div className="gallery-card-title">{g.caption}</div>
-              <div className="gallery-card-sub">{g.sub}</div>
-            </div>
-          </CoverPhoto>
+          <button className="gallery-card-btn" key={g.location} onClick={() => setOpenArea(g.location)} aria-label={`More about ${g.caption}`}>
+            <CoverPhoto className="gallery-card" src={LOCATION_IMAGES[g.location]} alt={g.caption}>
+              <div className="gallery-card-overlay" />
+              <div className="gallery-card-text">
+                <div className="gallery-card-title">{g.caption}</div>
+                <div className="gallery-card-sub">{g.sub}</div>
+              </div>
+            </CoverPhoto>
+          </button>
         ))}
       </div>
+      <AreaModal area={openArea} onClose={() => setOpenArea(null)} />
     </section>
   );
 }
@@ -616,8 +689,8 @@ function Home({ setView }) {
       <section className="hero hero-photo" style={{ backgroundImage: `linear-gradient(180deg, rgba(28,45,38,0.55), rgba(28,45,38,0.82)), url(${LOCATION_IMAGES["Lake Almanor"]})` }}>
         <div className="hero-inner">
           <Eyebrow color="var(--gold)">Lake Almanor, California · elev. 4,500 ft</Eyebrow>
-          <h1 className="hero-title">One basin.<br/>However you want to spend it.</h1>
-          <p className="hero-sub">Tell us how long you're here and what you're into, and we'll lay out a route across the whole basin — boating, fishing, hiking, biking, and off-roading included.</p>
+          <h1 className="hero-title">Lake Almanor adventures,<br/>planned your way.</h1>
+          <p className="hero-sub">Tell us how long you're here and what you're into, and we'll plan your Lake Almanor adventure — boating, fishing, hiking, biking, and off-roading included.</p>
           <div className="hero-signpost">
             <button className="sign sign-lake" onClick={() => setView("trip")}>
               <CalendarIcon size={18} />
@@ -1164,11 +1237,11 @@ function ExplorePage({ userLocation, setUserLocation }) {
    (e.g. "Lassen hiking," "Lake Almanor trip planner") would need real,
    separate URLs per category — see SEO_STRATEGY_NOTES.md. */
 const SITE_URL = "https://www.adventurealmanor.com/";
-const SITE_TITLE = "Lake Almanor Trip Planner | Boating, Fishing & Hiking";
-const SITE_DESCRIPTION = "Free trip planning for boating, fishing, hiking, biking, and off-roading around Lake Almanor, CA — plus real hiking trails and local guides.";
+const SITE_TITLE = "Lake Almanor Adventures | Trip Planning & Trails";
+const SITE_DESCRIPTION = "Free trip planning for Lake Almanor adventures — boating, fishing, hiking, biking, and off-roading, plus real trails and local guides.";
 const SEO_VIEWS = {
   home: { title: SITE_TITLE, description: SITE_DESCRIPTION },
-  trip: { title: "Lake Almanor Trip Builder | Custom Itineraries", description: "Build a custom day, weekend, or week-long Lake Almanor itinerary — boating, fishing, hiking, biking, and off-roading, matched to your trip." },
+  trip: { title: "Lake Almanor Trip Builder | Plan Your Adventure", description: "Build a custom day, weekend, or week-long Lake Almanor adventure — boating, fishing, hiking, biking, and off-roading, matched to your trip." },
   explore: { title: "Hiking Trails & Fishing Guides Near Lake Almanor", description: "Real hiking and biking trails around Lake Almanor and Lassen Volcanic NP, linked to AllTrails, plus local fishing charters and guides." },
 };
 
@@ -1325,6 +1398,21 @@ export default function AlmanorTripPlannerSite() {
         .gallery-card-title{ font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:19px; line-height:1.1; }
         .gallery-card-sub{ font-size:12px; color:#E4E9E1; margin-top:4px; max-width:230px; line-height:1.4; }
         @media (max-width:560px){ .gallery-card{ width:230px; height:160px; } }
+        .gallery-card-btn{ flex:0 0 auto; padding:0; border:none; background:none; cursor:pointer; border-radius:8px; scroll-snap-align:start; transition:transform 0.15s ease; }
+        .gallery-card-btn:hover{ transform:translateY(-2px); }
+        .gallery-card-btn:hover .gallery-card{ box-shadow:0 4px 14px rgba(0,0,0,0.25); }
+        .gallery-card-btn .gallery-card{ scroll-snap-align:none; }
+
+        /* area detail modal, opened by tapping a gallery-strip photo */
+        .area-modal-backdrop{ position:fixed; inset:0; background:rgba(20,32,27,0.72); display:flex; align-items:center; justify-content:center; padding:20px; z-index:100; }
+        .area-modal{ background:var(--paper); border-radius:10px; max-width:520px; width:100%; max-height:88vh; overflow-y:auto; position:relative; box-shadow:0 12px 40px rgba(0,0,0,0.35); }
+        .area-modal-close{ position:absolute; top:12px; right:12px; z-index:1; background:rgba(20,32,27,0.55); color:#fff; border:none; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .area-modal-close:hover{ background:rgba(20,32,27,0.8); }
+        .area-modal-photo{ height:220px; }
+        .area-modal-body{ padding:22px 24px 26px; }
+        .area-modal-title{ font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:28px; margin:6px 0 12px; color:var(--pine); }
+        .area-modal-desc{ font-size:14.5px; line-height:1.6; color:var(--ink); margin-bottom:16px; }
+        .area-modal-links{ display:flex; flex-direction:column; gap:8px; }
 
         /* sections */
         .section{ padding:64px 24px; }
