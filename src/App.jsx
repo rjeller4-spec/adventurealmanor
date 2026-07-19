@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Anchor, Mountain, Bike, Fish, Compass, MapPin, Calendar as CalendarIcon,
   Sun, Tent, Check, X, Menu, Phone, Mail, Clock, ArrowRight, Route,
-  ExternalLink, TrendingUp, Backpack, Flag
+  ExternalLink, TrendingUp, Backpack, Flag, ChevronUp, ChevronDown
 } from "lucide-react";
 
 /* ---------------------------------------------------------------- */
@@ -322,19 +322,60 @@ function fmtClock(startMinutes) {
   h = h % 12; if (h === 0) h = 12;
   return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
 }
+function minutesToTimeValue(mins) {
+  const wrapped = ((mins % 1440) + 1440) % 1440;
+  const hh = Math.floor(wrapped / 60).toString().padStart(2, "0");
+  const mm = (wrapped % 60).toString().padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+function timeValueToMinutes(value) {
+  const [hh, mm] = value.split(":").map(Number);
+  return hh * 60 + mm;
+}
+function makeSlotUid() {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+/* Walks a day's ordered slots (activities and breaks) and assigns each a
+   start time — sequential from 8:00 AM by default, but a slot with
+   startOverride jumps the cursor to that explicit time instead, which is
+   how "boat at 9, golf at 1" works: the next slot after an override just
+   picks up wherever that override left the cursor. */
+function computeSchedule(slots, allActivities) {
+  let cursor = 480; // 8:00 AM in minutes
+  return (slots || []).map((slot) => {
+    const start = slot.startOverride != null ? slot.startOverride : cursor;
+    if (slot.kind === "break") {
+      cursor = start + slot.minutes;
+      return { ...slot, start };
+    }
+    const activity = allActivities.find((a) => a.id === slot.id);
+    if (!activity) return null;
+    cursor = start + activity.hours * 60;
+    return { ...slot, start, activity };
+  }).filter(Boolean);
+}
+function dayActivityHours(slots, allActivities) {
+  return (slots || []).reduce((sum, s) => {
+    if (s.kind !== "activity") return sum;
+    const a = allActivities.find((x) => x.id === s.id);
+    return sum + (a ? a.hours : 0);
+  }, 0);
+}
 function buildItineraryText({ itinerary, allActivities, numDays, needLodging }) {
   const lines = ["YOUR ALMANOR BASIN TRIP ITINERARY", ""];
   let anyDay = false;
   for (let d = 1; d <= numDays; d++) {
-    const items = (itinerary[d] || []).map((id) => allActivities.find((a) => a.id === id)).filter(Boolean);
-    if (!items.length) continue;
+    const slots = itinerary[d] || [];
+    if (!slots.length) continue;
     anyDay = true;
     lines.push(`DAY ${d}`);
-    let cursor = 480;
-    items.forEach((a) => {
-      const start = cursor;
-      cursor += a.hours * 60;
-      lines.push(`  ${fmtClock(start)} — ${a.title} (${a.location}, ${fmtHours(a.hours)})`);
+    computeSchedule(slots, allActivities).forEach((s) => {
+      if (s.kind === "break") {
+        lines.push(`  ${fmtClock(s.start)} — ${s.label || "Break"} (${fmtHours(s.minutes / 60)})`);
+        return;
+      }
+      const a = s.activity;
+      lines.push(`  ${fmtClock(s.start)} — ${a.title} (${a.location}, ${fmtHours(a.hours)})`);
       const vendor = a.vendorId && VENDORS.find((v) => v.id === a.vendorId);
       if (vendor) lines.push(`    Book guide: ${vendor.name} — ${vendor.url}`);
     });
@@ -417,6 +458,21 @@ function saveTrip(trip) {
   try {
     localStorage.setItem(TRIP_STORAGE_KEY, JSON.stringify(trip));
   } catch (e) { /* storage unavailable — trip just won't persist across visits */ }
+}
+/* Trips saved before reordering/breaks/custom times were added stored each
+   day as a plain array of activity ids. Upgrade those to the current slot
+   shape on load so old saved trips don't break. */
+function migrateItinerary(raw) {
+  if (!raw) return {};
+  const out = {};
+  Object.keys(raw).forEach((day) => {
+    out[day] = (raw[day] || []).map((item) =>
+      typeof item === "number"
+        ? { uid: makeSlotUid(), kind: "activity", id: item, startOverride: null }
+        : { startOverride: null, ...item }
+    );
+  });
+  return out;
 }
 
 /* ---------------------------------------------------------------- */
@@ -753,7 +809,7 @@ function TripBuilder({ userLocation, setUserLocation }) {
   const [durationId, setDurationId] = useState(savedTrip?.durationId || "weekend");
   const [interests, setInterests] = useState(new Set());
   const [locations, setLocations] = useState(new Set());
-  const [itinerary, setItinerary] = useState(savedTrip?.itinerary || {}); // { [day]: [activityId, ...] }
+  const [itinerary, setItinerary] = useState(migrateItinerary(savedTrip?.itinerary)); // { [day]: [{ uid, kind: "activity", id, startOverride } | { uid, kind: "break", minutes, label, startOverride }, ...] }
   const [activeDay, setActiveDay] = useState(1);
   const [expandedId, setExpandedId] = useState(null);
   const [customTrails, setCustomTrails] = useState([]);
@@ -800,21 +856,43 @@ function TripBuilder({ userLocation, setUserLocation }) {
   const lengthTest = (LENGTH_FILTERS.find((l) => l.id === lengthFilter) || LENGTH_FILTERS[0]).test;
   const pool = allActivities.filter((a) => wantLocations.has(a.location) && a.tags.some((t) => wantInterests.has(t)) && lengthTest(a.hours));
 
-  const usedIds = useMemo(() => new Set(Object.values(itinerary).flat()), [itinerary]);
-
   function addToDay(activityId, day) {
     setItinerary((prev) => {
       const list = prev[day] || [];
-      if (list.includes(activityId)) return prev;
-      return { ...prev, [day]: [...list, activityId] };
+      if (list.some((s) => s.kind === "activity" && s.id === activityId)) return prev;
+      return { ...prev, [day]: [...list, { uid: makeSlotUid(), kind: "activity", id: activityId, startOverride: null }] };
     });
   }
-  function removeFromDay(activityId, day) {
-    setItinerary((prev) => ({ ...prev, [day]: (prev[day] || []).filter((id) => id !== activityId) }));
+  function removeSlot(day, uid) {
+    setItinerary((prev) => ({ ...prev, [day]: (prev[day] || []).filter((s) => s.uid !== uid) }));
+  }
+  function addBreak(day) {
+    setItinerary((prev) => {
+      const list = prev[day] || [];
+      return { ...prev, [day]: [...list, { uid: makeSlotUid(), kind: "break", minutes: 30, label: "Break", startOverride: null }] };
+    });
+  }
+  function setBreakMinutes(day, uid, minutes) {
+    setItinerary((prev) => ({ ...prev, [day]: (prev[day] || []).map((s) => (s.uid === uid ? { ...s, minutes } : s)) }));
+  }
+  function setStartOverride(day, uid, minutes) {
+    setItinerary((prev) => ({ ...prev, [day]: (prev[day] || []).map((s) => (s.uid === uid ? { ...s, startOverride: minutes } : s)) }));
+  }
+  function moveSlot(day, uid, delta) {
+    setItinerary((prev) => {
+      const list = prev[day] || [];
+      const idx = list.findIndex((s) => s.uid === uid);
+      const newIdx = idx + delta;
+      if (idx === -1 || newIdx < 0 || newIdx >= list.length) return prev;
+      const next = [...list];
+      [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+      return { ...prev, [day]: next };
+    });
   }
 
-  const dayItems = (itinerary[activeDay] || []).map((id) => allActivities.find((a) => a.id === id)).filter(Boolean);
-  const dayHours = dayItems.reduce((sum, a) => sum + a.hours, 0);
+  const daySlots = itinerary[activeDay] || [];
+  const scheduledDaySlots = useMemo(() => computeSchedule(daySlots, allActivities), [daySlots, allActivities]);
+  const dayHours = dayActivityHours(daySlots, allActivities);
 
   const hasItems = Object.values(itinerary).some((list) => list.length > 0);
 
@@ -897,7 +975,7 @@ function TripBuilder({ userLocation, setUserLocation }) {
             {numDays > 1 && (
               <div className="day-tabs">
                 {Array.from({ length: numDays }, (_, i) => i + 1).map((d) => {
-                  const h = (itinerary[d] || []).reduce((s, id) => s + (allActivities.find((a) => a.id === id)?.hours || 0), 0);
+                  const h = dayActivityHours(itinerary[d] || [], allActivities);
                   return (
                     <button key={d} className={`day-tab ${activeDay === d ? "day-tab-active" : ""}`} onClick={() => setActiveDay(d)}>
                       Day {d}{h > 0 && <span className="day-tab-hours">{fmtHours(h)}</span>}
@@ -912,32 +990,62 @@ function TripBuilder({ userLocation, setUserLocation }) {
                 <span>Day {activeDay} plan</span>
                 <span className={`itin-hours ${dayHours > 8 ? "itin-hours-over" : ""}`}>{fmtHours(dayHours)} planned{dayHours > 8 ? " · long day" : ""}</span>
               </div>
-              {dayItems.length === 0 ? (
+              {scheduledDaySlots.length === 0 ? (
                 <div className="itin-empty">Nothing added yet — pick something below to start building Day {activeDay}.</div>
               ) : (
                 <div className="itin-list">
-                  {(() => {
-                    let cursor = 480; // 8:00 AM in minutes
-                    return dayItems.map((a) => {
-                      const start = cursor;
-                      cursor += a.hours * 60;
-                      const vendor = a.vendorId && VENDORS.find((v) => v.id === a.vendorId);
+                  {scheduledDaySlots.map((slot, idx) => {
+                    if (slot.kind === "break") {
                       return (
-                        <div className="itin-item" key={a.id}>
-                          <div className="itin-item-time">{fmtClock(start)}</div>
-                          <div className="itin-item-body">
-                            <div className="itin-item-loc"><MapPin size={11} /> {a.location} · {fmtHours(a.hours)} <DistanceBadge userLocation={userLocation} coords={coordsForActivity(a)} /></div>
-                            <div className="itin-item-title">{a.title}</div>
-                            {vendor && <div className="itin-slot-gear">Guided trip — book with operator</div>}
-                            {vendor && <a className="link-arrow itin-item-reserve" href={`${vendor.url}${vendor.url.includes("?") ? "&" : "?"}utm_source=almanorbasin&utm_medium=referral&utm_campaign=trip_builder`} target="_blank" rel="noopener noreferrer" onClick={() => trackVendorClick(vendor.id)}>Book with {vendor.name} <ExternalLink size={12} /></a>}
+                        <div className="itin-item itin-item-break" key={slot.uid}>
+                          <div className="itin-item-reorder">
+                            <button className="itin-reorder-btn" onClick={() => moveSlot(activeDay, slot.uid, -1)} disabled={idx === 0} aria-label="Move earlier"><ChevronUp size={14} /></button>
+                            <button className="itin-reorder-btn" onClick={() => moveSlot(activeDay, slot.uid, 1)} disabled={idx === scheduledDaySlots.length - 1} aria-label="Move later"><ChevronDown size={14} /></button>
                           </div>
-                          <button className="itin-item-remove" onClick={() => removeFromDay(a.id, activeDay)} aria-label="Remove"><X size={14} /></button>
+                          <div className="itin-item-time">
+                            <input type="time" className="itin-time-input" value={minutesToTimeValue(slot.start)} onChange={(e) => setStartOverride(activeDay, slot.uid, timeValueToMinutes(e.target.value))} />
+                            {slot.startOverride != null && <button className="itin-time-auto" onClick={() => setStartOverride(activeDay, slot.uid, null)}>Auto</button>}
+                          </div>
+                          <div className="itin-item-body">
+                            <div className="itin-item-title">Break</div>
+                            <select className="itin-break-select" value={slot.minutes} onChange={(e) => setBreakMinutes(activeDay, slot.uid, Number(e.target.value))}>
+                              <option value={15}>15 min</option>
+                              <option value={30}>30 min</option>
+                              <option value={45}>45 min</option>
+                              <option value={60}>1 hr</option>
+                              <option value={90}>1.5 hrs</option>
+                              <option value={120}>2 hrs</option>
+                            </select>
+                          </div>
+                          <button className="itin-item-remove" onClick={() => removeSlot(activeDay, slot.uid)} aria-label="Remove break"><X size={14} /></button>
                         </div>
                       );
-                    });
-                  })()}
+                    }
+                    const a = slot.activity;
+                    const vendor = a.vendorId && VENDORS.find((v) => v.id === a.vendorId);
+                    return (
+                      <div className="itin-item" key={slot.uid}>
+                        <div className="itin-item-reorder">
+                          <button className="itin-reorder-btn" onClick={() => moveSlot(activeDay, slot.uid, -1)} disabled={idx === 0} aria-label="Move earlier"><ChevronUp size={14} /></button>
+                          <button className="itin-reorder-btn" onClick={() => moveSlot(activeDay, slot.uid, 1)} disabled={idx === scheduledDaySlots.length - 1} aria-label="Move later"><ChevronDown size={14} /></button>
+                        </div>
+                        <div className="itin-item-time">
+                          <input type="time" className="itin-time-input" value={minutesToTimeValue(slot.start)} onChange={(e) => setStartOverride(activeDay, slot.uid, timeValueToMinutes(e.target.value))} />
+                          {slot.startOverride != null && <button className="itin-time-auto" onClick={() => setStartOverride(activeDay, slot.uid, null)}>Auto</button>}
+                        </div>
+                        <div className="itin-item-body">
+                          <div className="itin-item-loc"><MapPin size={11} /> {a.location} · {fmtHours(a.hours)} <DistanceBadge userLocation={userLocation} coords={coordsForActivity(a)} /></div>
+                          <div className="itin-item-title">{a.title}</div>
+                          {vendor && <div className="itin-slot-gear">Guided trip — book with operator</div>}
+                          {vendor && <a className="link-arrow itin-item-reserve" href={`${vendor.url}${vendor.url.includes("?") ? "&" : "?"}utm_source=almanorbasin&utm_medium=referral&utm_campaign=trip_builder`} target="_blank" rel="noopener noreferrer" onClick={() => trackVendorClick(vendor.id)}>Book with {vendor.name} <ExternalLink size={12} /></a>}
+                        </div>
+                        <button className="itin-item-remove" onClick={() => removeSlot(activeDay, slot.uid)} aria-label="Remove"><X size={14} /></button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
+              <button className="btn btn-ghost btn-sm itin-add-break" onClick={() => addBreak(activeDay)}><Clock size={14} /> Add a break</button>
             </div>
 
             {hasItems && (
@@ -965,7 +1073,7 @@ function TripBuilder({ userLocation, setUserLocation }) {
             ) : (
             <div className="activity-grid">
               {pool.map((a) => {
-                const added = (itinerary[activeDay] || []).includes(a.id);
+                const added = (itinerary[activeDay] || []).some((s) => s.kind === "activity" && s.id === a.id);
                 const expanded = expandedId === a.id;
                 const vendor = a.vendorId ? VENDORS.find((v) => v.id === a.vendorId) : null;
                 return (
@@ -1609,14 +1717,23 @@ export default function AlmanorTripPlannerSite() {
         .itin-empty{ font-size:13.5px; color:var(--granite); padding:14px 0; }
         .itin-list{ display:flex; flex-direction:column; gap:10px; }
         .itin-item{ display:flex; gap:12px; align-items:flex-start; background:var(--paper); border:1px solid #DDD5BF; border-radius:6px; padding:12px 14px; }
-        .itin-item-time{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:var(--pine); white-space:nowrap; padding-top:2px; }
+        .itin-item-break{ background:var(--paper-2); border-style:dashed; }
+        .itin-item-reorder{ display:flex; flex-direction:column; gap:2px; padding-top:2px; }
+        .itin-reorder-btn{ display:flex; align-items:center; justify-content:center; width:20px; height:17px; background:none; border:1px solid #DDD5BF; border-radius:4px; color:var(--pine); padding:0; }
+        .itin-reorder-btn:hover:not(:disabled){ background:var(--paper-2); }
+        .itin-reorder-btn:disabled{ opacity:0.3; }
+        .itin-item-time{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding-top:2px; }
+        .itin-time-input{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:var(--pine); white-space:nowrap; border:1px solid #DDD5BF; border-radius:4px; padding:3px 4px; background:var(--paper); width:92px; }
+        .itin-time-auto{ font-size:10px; color:var(--granite); text-decoration:underline; background:none; border:none; padding:0; }
         .itin-item-body{ flex:1; }
         .itin-item-loc{ display:flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--pine); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; }
         .itin-item-title{ font-weight:700; font-size:14.5px; }
+        .itin-break-select{ margin-top:6px; font-size:13px; border:1px solid #DDD5BF; border-radius:6px; padding:4px 8px; background:var(--paper); }
         .itin-item-remove{ background:none; border:none; color:var(--granite); padding:2px; }
         .itin-item-remove:hover{ color:var(--ember); }
+        .itin-add-break{ margin-top:12px; }
         .itin-slot-desc{ font-size:13.5px; color:var(--granite); line-height:1.5; margin-bottom:6px; }
-        .itin-slot-desc-collapsed{ margin-top:6px; margin-bottom:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .itin-slot-desc-collapsed{ margin-top:6px; margin-bottom:0; }
         .itin-slot-gear{ font-size:12px; font-weight:600; color:var(--ember); margin-top:2px; }
 
         .activity-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:12px; }
