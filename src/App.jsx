@@ -270,12 +270,12 @@ const RESTAURANTS = [
   { id: "ranch-house", name: "The Ranch House", location: "Chester", cuisine: "American", meals: ["breakfast", "lunch", "dinner"], desc: "Chester's go-to for breakfast, lunch, and dinner, with cocktails and a reputation for great burgers.", url: businessSearchUrl("The Ranch House restaurant Chester CA"), coords: { lat: 40.2970594, lng: -121.2388205 } },
   { id: "kopper-kettle", name: "Kopper Kettle", location: "Chester", cuisine: "American", meals: ["breakfast", "lunch", "dinner"], desc: "A Main Street staple open early for breakfast through dinner, known for generous portions and friendly service.", url: businessSearchUrl("Kopper Kettle restaurant Chester CA"), coords: { lat: 40.3085590, lng: -121.2299049 } },
   { id: "lolas", name: "Lola's Family Restaurant", location: "Chester", cuisine: "Breakfast & Brunch", meals: ["breakfast", "lunch"], desc: "A breakfast-and-brunch favorite on Main Street.", url: businessSearchUrl("Lola's Family Restaurant Chester CA"), coords: { lat: 40.3049460, lng: -121.2332730 } },
-  { id: "cravings", name: "Cravings Cafe, Espresso Bar & Bakery", location: "Chester", cuisine: "Cafe & Bakery", meals: ["breakfast", "lunch"], desc: "Scratch-made breakfast and lunch with fresh-baked goods and espresso.", url: businessSearchUrl("Cravings Cafe Espresso Bar Bakery Chester CA"), coords: LOCATION_COORDS["Chester"] },
+  { id: "cravings", name: "Cravings Cafe, Espresso Bar & Bakery", location: "Chester", cuisine: "Cafe & Bakery", meals: ["breakfast", "lunch"], desc: "Scratch-made breakfast and lunch with fresh-baked goods and espresso.", url: businessSearchUrl("Cravings Cafe Espresso Bar Bakery Chester CA"), coords: { lat: 40.3077327, lng: -121.2313425 } },
   { id: "st-bernard-lodge", name: "St. Bernard Lodge", location: "Chester", cuisine: "American Lodge", meals: ["breakfast", "lunch", "dinner"], desc: "A historic lodge restaurant east of Chester serving breakfast through dinner, with cocktails.", url: "https://stbernardlodge.com", coords: { lat: 40.2598962, lng: -121.3726433 } },
   { id: "bailey-creek-grill", name: "Bailey Creek Bar & Grill", location: "Lake Almanor", cuisine: "Bar & Grill", meals: ["lunch", "dinner"], desc: "Lunch and dinner with cocktails at the Bailey Creek golf clubhouse on the lake.", url: "https://baileycreek.com/", coords: { lat: 40.2909011, lng: -121.14048 } },
   { id: "il-lago", name: "Il Lago Pizza & Pasta", location: "Lake Almanor", cuisine: "Italian", meals: ["lunch", "dinner"], desc: "Family-run Italian on the Peninsula — handmade pizza and pasta, open for lunch and dinner (closed Mondays).", url: "https://illagopizza.com", coords: { lat: 40.2778967, lng: -121.1293437 } },
-  { id: "lucianos", name: "Luciano's Cucina Di Pasta", location: "Lake Almanor", cuisine: "Italian", meals: ["dinner"], desc: "An Italian dinner spot on the Lake Almanor Peninsula.", url: businessSearchUrl("Luciano's Cucina Di Pasta Lake Almanor CA"), coords: LOCATION_COORDS["Lake Almanor"] },
-  { id: "almanor-west-grill", name: "Almanor West Unity Grill", location: "Chester", cuisine: "Bar & Grill", meals: ["lunch", "dinner"], desc: "Lunch, dinner, and cocktails upstairs at the Lake Almanor West golf clubhouse.", url: "https://www.lakealmanorwest.org/", coords: { lat: 40.2411535, lng: -121.2052744 } },
+  { id: "lucianos", name: "Luciano's Cucina Di Pasta", location: "Lake Almanor", cuisine: "Italian", meals: ["dinner"], desc: "An Italian dinner spot on the Lake Almanor Peninsula.", url: businessSearchUrl("Luciano's Cucina Di Pasta Lake Almanor CA"), coords: { lat: 40.2769341, lng: -121.129691 } },
+  { id: "almanor-west-grill", name: "Almanor West Grill", location: "Chester", cuisine: "Bar & Grill", meals: ["lunch", "dinner"], desc: "Lunch, dinner, and cocktails upstairs at the Lake Almanor West golf clubhouse.", url: "https://www.lakealmanorwest.org/", coords: { lat: 40.2443855, lng: -121.2136128 } },
   { id: "buffalo-chips", name: "Buffalo Chip's Pizza", location: "Westwood", cuisine: "Pizza", meals: ["lunch", "dinner"], desc: "Westwood's local pizza spot for lunch and dinner.", url: businessSearchUrl("Buffalo Chip's Pizza Westwood CA"), coords: { lat: 40.3038329, lng: -121.0015922 } },
 ];
 
@@ -329,7 +329,7 @@ const ACTIVITY_COORDS = {
   41: { lat: 40.2836, lng: -121.0248 }, // Indian Ole Dam, Mountain Meadows Reservoir
   42: { lat: 40.2836, lng: -121.0248 }, // Indian Ole Dam, Mountain Meadows Reservoir
   43: { lat: 40.2909011, lng: -121.14048 }, // Bailey Creek Golf Course (resolved from the course's own Google Maps link)
-  44: { lat: 40.2411535, lng: -121.2052744 }, // Lake Almanor West Golf Course
+  44: { lat: 40.2447814, lng: -121.2127075 }, // Lake Almanor West Golf Course (Google Maps place pin — corrects an earlier OSM polygon-centroid geocode that was ~0.6 mi off)
 };
 function coordsForActivity(a) {
   return ACTIVITY_COORDS[a.id] || LOCATION_COORDS[a.location];
