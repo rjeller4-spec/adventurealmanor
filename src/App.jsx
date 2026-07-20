@@ -414,6 +414,9 @@ function buildItineraryText({ itinerary, allActivities, numDays, needLodging }) 
       }
       const a = s.activity;
       lines.push(`  ${fmtClock(s.start)} — ${a.title} (${a.location}, ${fmtHours(a.hours)})`);
+      if (a.desc) lines.push(`    ${a.desc}`);
+      const link = a.trail ? trailLinkFor(a) : a.sourceUrl;
+      if (link) lines.push(`    ${link}`);
       const vendor = a.vendorId && VENDORS.find((v) => v.id === a.vendorId);
       if (vendor) lines.push(`    Book guide: ${vendor.name} — ${vendor.url}`);
     });
@@ -942,6 +945,17 @@ function TripBuilder({ userLocation, setUserLocation }) {
   function setStartOverride(day, uid, minutes) {
     setItinerary((prev) => ({ ...prev, [day]: (prev[day] || []).map((s) => (s.uid === uid ? { ...s, startOverride: minutes } : s)) }));
   }
+  // Re-sorts a day's slots into chronological order based on their computed
+  // start times. Called on blur (not on every keystroke) so the row doesn't
+  // jump around mid-edit while someone's still typing a time.
+  function resortDayByTime(day) {
+    setItinerary((prev) => {
+      const list = prev[day] || [];
+      const startByUid = new Map(computeSchedule(list, allActivities).map((s) => [s.uid, s.start]));
+      const sorted = [...list].sort((a, b) => (startByUid.get(a.uid) ?? 0) - (startByUid.get(b.uid) ?? 0));
+      return { ...prev, [day]: sorted };
+    });
+  }
   function moveSlot(day, uid, delta) {
     setItinerary((prev) => {
       const list = prev[day] || [];
@@ -1067,8 +1081,8 @@ function TripBuilder({ userLocation, setUserLocation }) {
                             <button className="itin-reorder-btn" onClick={() => moveSlot(activeDay, slot.uid, 1)} disabled={idx === scheduledDaySlots.length - 1} aria-label="Move later"><ChevronDown size={14} /></button>
                           </div>
                           <div className="itin-item-time">
-                            <input type="time" className="itin-time-input" value={minutesToTimeValue(slot.start)} onChange={(e) => setStartOverride(activeDay, slot.uid, timeValueToMinutes(e.target.value))} />
-                            {slot.startOverride != null && <button className="itin-time-auto" onClick={() => setStartOverride(activeDay, slot.uid, null)}>Auto</button>}
+                            <input type="time" className="itin-time-input" value={minutesToTimeValue(slot.start)} onChange={(e) => setStartOverride(activeDay, slot.uid, timeValueToMinutes(e.target.value))} onBlur={() => resortDayByTime(activeDay)} />
+                            {slot.startOverride != null && <button className="itin-time-auto" onClick={() => { setStartOverride(activeDay, slot.uid, null); resortDayByTime(activeDay); }}>Auto</button>}
                           </div>
                           <div className="itin-item-body">
                             <div className="itin-item-title">Break</div>
@@ -1095,8 +1109,8 @@ function TripBuilder({ userLocation, setUserLocation }) {
                             <button className="itin-reorder-btn" onClick={() => moveSlot(activeDay, slot.uid, 1)} disabled={idx === scheduledDaySlots.length - 1} aria-label="Move later"><ChevronDown size={14} /></button>
                           </div>
                           <div className="itin-item-time">
-                            <input type="time" className="itin-time-input" value={minutesToTimeValue(slot.start)} onChange={(e) => setStartOverride(activeDay, slot.uid, timeValueToMinutes(e.target.value))} />
-                            {slot.startOverride != null && <button className="itin-time-auto" onClick={() => setStartOverride(activeDay, slot.uid, null)}>Auto</button>}
+                            <input type="time" className="itin-time-input" value={minutesToTimeValue(slot.start)} onChange={(e) => setStartOverride(activeDay, slot.uid, timeValueToMinutes(e.target.value))} onBlur={() => resortDayByTime(activeDay)} />
+                            {slot.startOverride != null && <button className="itin-time-auto" onClick={() => { setStartOverride(activeDay, slot.uid, null); resortDayByTime(activeDay); }}>Auto</button>}
                           </div>
                           <div className="itin-item-body">
                             <select className="itin-break-select itin-meal-type" value={slot.mealType} onChange={(e) => setMealType(activeDay, slot.uid, e.target.value)}>
@@ -1121,8 +1135,8 @@ function TripBuilder({ userLocation, setUserLocation }) {
                           <button className="itin-reorder-btn" onClick={() => moveSlot(activeDay, slot.uid, 1)} disabled={idx === scheduledDaySlots.length - 1} aria-label="Move later"><ChevronDown size={14} /></button>
                         </div>
                         <div className="itin-item-time">
-                          <input type="time" className="itin-time-input" value={minutesToTimeValue(slot.start)} onChange={(e) => setStartOverride(activeDay, slot.uid, timeValueToMinutes(e.target.value))} />
-                          {slot.startOverride != null && <button className="itin-time-auto" onClick={() => setStartOverride(activeDay, slot.uid, null)}>Auto</button>}
+                          <input type="time" className="itin-time-input" value={minutesToTimeValue(slot.start)} onChange={(e) => setStartOverride(activeDay, slot.uid, timeValueToMinutes(e.target.value))} onBlur={() => resortDayByTime(activeDay)} />
+                          {slot.startOverride != null && <button className="itin-time-auto" onClick={() => { setStartOverride(activeDay, slot.uid, null); resortDayByTime(activeDay); }}>Auto</button>}
                         </div>
                         <div className="itin-item-body">
                           <div className="itin-item-loc"><MapPin size={11} /> {a.location} · {fmtHours(a.hours)} <DistanceBadge userLocation={userLocation} coords={coordsForActivity(a)} /></div>
@@ -1879,14 +1893,21 @@ export default function AlmanorTripPlannerSite() {
         .itin-item-time{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding-top:2px; }
         .itin-time-input{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:var(--pine); white-space:nowrap; border:1px solid #DDD5BF; border-radius:4px; padding:3px 4px; background:var(--paper); width:92px; }
         .itin-time-auto{ font-size:10px; color:var(--granite); text-decoration:underline; background:none; border:none; padding:0; }
-        .itin-item-body{ flex:1; }
-        .itin-item-loc{ display:flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--pine); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; }
+        .itin-item-body{ flex:1; min-width:0; }
+        .itin-item-loc{ display:flex; align-items:center; flex-wrap:wrap; gap:4px; font-size:11px; font-weight:600; color:var(--pine); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; }
         .itin-item-title{ font-weight:700; font-size:14.5px; }
-        .itin-break-select{ margin-top:6px; margin-right:8px; font-size:13px; border:1px solid #DDD5BF; border-radius:6px; padding:4px 8px; background:var(--paper); }
+        .itin-break-select{ display:block; width:100%; max-width:100%; box-sizing:border-box; margin-top:6px; font-size:13px; border:1px solid #DDD5BF; border-radius:6px; padding:4px 8px; background:var(--paper); text-overflow:ellipsis; }
         .itin-meal-type{ font-weight:600; color:var(--pine); }
-        .itin-item-remove{ background:none; border:none; color:var(--granite); padding:2px; }
+        .itin-item-remove{ background:none; border:none; color:var(--granite); padding:2px; flex:0 0 auto; }
         .itin-item-remove:hover{ color:var(--ember); }
-        .itin-add-row{ display:flex; gap:10px; margin-top:12px; }
+        .itin-add-row{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+        @media (max-width:480px){
+          .itin-item{ flex-wrap:wrap; }
+          .itin-item-reorder{ order:1; }
+          .itin-item-time{ order:2; }
+          .itin-item-remove{ order:3; margin-left:auto; }
+          .itin-item-body{ order:4; flex-basis:100%; margin-top:10px; }
+        }
         .itin-slot-desc{ font-size:13.5px; color:var(--granite); line-height:1.5; margin-bottom:6px; }
         .itin-slot-desc-collapsed{ margin-top:6px; margin-bottom:0; }
         .itin-slot-gear{ font-size:12px; font-weight:600; color:var(--ember); margin-top:2px; }
